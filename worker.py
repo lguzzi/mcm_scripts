@@ -104,8 +104,6 @@ class workerR(worker):
 
     return newset
 
-    import pdb; pdb.set_trace()
-
 class workerT(worker):
   ''' fetch and work on requests from a ticket id
   '''
