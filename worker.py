@@ -1,14 +1,16 @@
-from __future__ import print_function
-from json import dumps
-import copy
-
 import sys
+assert sys.version_info.major>2 and sys.version_info.minor>5, "Python 3.6+ required"
 sys.path.append('/afs/cern.ch/cms/PPD/PdmV/tools/McM/')
 
-assert sys.version_info.major>2 and sys.version_info.minor>5, "Python 3.6+ required"
+import copy
+from json import dumps
+
 
 class worker:
   ''' base class to work on group of requests
+  based on pdmv rest api python implementation
+  https://cms-pdmv.gitbook.io/project/mccontact/scripting-in-mcm
+  https://github.com/cms-PdmV/mcm_scripts
   '''
   chain_RunIISummer20UL18     = ''
   chain_RunIISummer20UL17     = ''
@@ -20,8 +22,13 @@ class worker:
     self.name = name
     self.mcm  = mcm
 
-  def fetch():
-    pass
+  def fetch(self):
+    print("WARNING: fetch method not implemented for the base class")
+
+  def __str__(self):
+    return '\n'.join(["Requests in {}:".format(self.name)]+[
+      "\t"+req['prepid'] for req in self.requests
+    ])
 
   def checkid(self):
     ''' check that requests are valid
@@ -74,9 +81,30 @@ class worker:
 class workerR(worker):
   ''' init a group of requests from prepids
   '''
-  def __init__(self, name, requests, *args, **kwargs):
+  def __init__(self, requests, *args, **kwargs):
     super().__init__(*args, **kwargs)
-    self._requests = [self.mcm.get(req) for req in requests]
+    self._requests = requests
+    self.fetch()
+
+  def fetch(self):
+    self.requests = [self.mcm.get(object_type='requests', object_id=req) for req in self._requests]
+
+  def clone(self, campaign, update={}):
+    cloned = copy.deepcopy(self.requests)
+    for clo in cloned:
+      for k, v in update.items():
+        clo[k]=v
+      clo['member_of_campaign']=campaign
+
+    clone_answers = [self.mcm.clone_request(clo) for clo in cloned]
+    _cloned       = [clo['prepid'] for clo in clone_answers]
+    newset = workerR(name="cloned_{}_{}".format(self.name, campaign), mcm=self.mcm, requests=_cloned)
+    newset.checkid()
+    print(newset)
+
+    return newset
+
+    import pdb; pdb.set_trace()
 
 class workerT(worker):
   ''' fetch and work on requests from a ticket id
@@ -90,7 +118,7 @@ class workerT(worker):
     self.ticket     = self.mcm.get(object_id=self._ticket, object_type='mccms')
     self.requests   = self.mcm.root_requests_from_ticket(self._ticket)
     self._requests  = [req['prepid'] for req in self.requests]
-  
+
   def clone(self, campaign, newname='cloned', newticket=True):
     ''' clone the ticket requests in a new campaign and
     possibly in a new ticket
