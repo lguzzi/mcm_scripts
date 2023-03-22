@@ -1,4 +1,4 @@
-import sys
+import sys, os
 assert sys.version_info.major>2 and sys.version_info.minor>5, "Python 3.6+ required"
 sys.path.append('/afs/cern.ch/cms/PPD/PdmV/tools/McM/')
 
@@ -41,11 +41,18 @@ class worker:
   def checkstate(self):
     ''' check the status and approval state of the requests
     '''
+    self.fetch()
     print('\n'.join([
       '{ID}\tstatus {S}\tapproval {A}'.format(
         ID=req['prepid'], S=req['status'], A=req['approval']
       ) for req in self.requests])
     )
+
+  def reset(self):
+    for req in self._requests:
+      self.mcm.reset(req)
+    print("requests for {} have been reset".format(self.name))
+    self.fetch()
 
   def update(self, fields):
     ''' WARNING: are you sure you don't want to use the McM webpage? 
@@ -77,6 +84,36 @@ class worker:
       'chains'  : chain ,
       'requests': self.requests,
     }
+  
+  def grasp(self, campaigns, shorten=False):
+    ''' returns the link to the grasp monitor page.
+    can (WIP) interface with CERN url shortening service
+    https://espace.cern.ch/webservices-help/other-services/Shorten-long-URL/Pages/Usage.aspx
+    '''
+    LINK="https://cms-pdmv.cern.ch/grasp/samples?dataset_query={D}&campaign={C}".format(
+      D=','.join(req['dataset_name'] for req in self.requests),
+      C=','.join(campaigns)
+    )
+    if not shorten: return LINK
+    import requests
+    service = "https://webservices.web.cern.ch/webservices/Services/ShortenURL/"
+    cookie  = worker.generate_cookie(url=service)
+    url     = service+"default?shorten="+LINK
+    req     = requests.get(url, verify=True, cookies=cookie, allow_redirects=True)
+    import pdb; pdb.set_trace()
+
+  @staticmethod
+  def generate_cookie(url):
+    '''generate a cookie. WIP.
+    '''
+    import tempfile
+    import http.cookiejar as cookielib
+    cookiepath = '/tmp/{}/cookiefile_SU.txt'.format(os.getlogin())
+    cmd = 'auth-get-sso-cookie --url "{}" -o {}'.format(url, cookiepath)
+    ret = os.system(cmd)
+    cookie = cookielib.MozillaCookieJar(cookiepath)
+    cookie.load()
+    return cookie
 
 class workerR(worker):
   ''' init a group of requests from prepids
