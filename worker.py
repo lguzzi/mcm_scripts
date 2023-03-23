@@ -4,6 +4,7 @@ sys.path.append('/afs/cern.ch/cms/PPD/PdmV/tools/McM/')
 
 import copy
 from json import dumps
+import time
 
 
 class worker:
@@ -41,7 +42,7 @@ class worker:
   def checkstate(self):
     ''' check the status and approval state of the requests
     '''
-    self.fetch()
+    self.fetch(sleep=2)
     print('\n'.join([
       '{ID}\tstatus {S}\tapproval {A}'.format(
         ID=req['prepid'], S=req['status'], A=req['approval']
@@ -52,7 +53,7 @@ class worker:
     for req in self._requests:
       self.mcm.reset(req)
     print("requests for {} have been reset".format(self.name))
-    self.fetch()
+    self.fetch(sleep=2)
 
   def update(self, fields):
     ''' WARNING: are you sure you don't want to use the McM webpage? 
@@ -64,7 +65,7 @@ class worker:
         req[k] = v if not type(v)==type(lambda: None) else v(req)
       update_response = self.mcm.update('requests', req)
       print('Update response: %s' % (update_response))
-    self.fetch()
+    self.fetch(sleep=2)
 
   def validate(self):
     ''' validate the requests.
@@ -73,7 +74,7 @@ class worker:
     for req in self._requests:
       self.mcm.approve(object_type='requests', object_id=req)
     print("validation run for {}".format(self.name))
-    self.fetch()
+    self.fetch(sleep=2)
 
   def new_ticket(self, pwg, block, chain):
     ''' WIP
@@ -123,7 +124,8 @@ class workerR(worker):
     self._requests = requests
     self.fetch()
 
-  def fetch(self):
+  def fetch(self, sleep=0):
+    time.sleep(sleep)
     self.requests = [self.mcm.get(object_type='requests', object_id=req) for req in self._requests]
 
   def clone(self, campaign, update={}):
@@ -149,7 +151,8 @@ class workerT(worker):
     self._ticket    = ticket
     self.fetch()
 
-  def fetch(self):
+  def fetch(self, sleep=0):
+    time.sleep(sleep)
     self.ticket     = self.mcm.get(object_id=self._ticket, object_type='mccms')
     self.requests   = self.mcm.root_requests_from_ticket(self._ticket)
     self._requests  = [req['prepid'] for req in self.requests]
