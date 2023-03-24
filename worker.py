@@ -85,6 +85,7 @@ class worker:
       'chains'  : chains  ,
     }
     tick = mcm.put(object_type='mccms', object_data=ticket, method='save')
+    mcm.get(object_type="mccms", object_id=tick.prepid(), method='update_total_events')
     return workerT(name=name, ticket=tick['prepid'], mcm=mcm)
   
   def grasp(self, campaigns, shorten=False):
@@ -175,4 +176,3 @@ class workerT(worker):
     newset.checkstate()
     if not newticket: return newset
     return worker.new_ticket(mcm=self.mcm, requests=newids, pwg=pwg, block=block, chains=chains, name=name)
-
