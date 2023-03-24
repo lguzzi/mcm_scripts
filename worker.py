@@ -13,15 +13,16 @@ class worker:
   https://cms-pdmv.gitbook.io/project/mccontact/scripting-in-mcm
   https://github.com/cms-PdmV/mcm_scripts
   '''
-  chain_RunIISummer20UL18     = ''
-  chain_RunIISummer20UL17     = ''
-  chain_RunIISummer20UL16     = ''
-  chain_RunIISummer20UL16APV  = ''
+  chain_RunIISummer20UL18     = 'chain_RunIISummer20UL18GEN_flowRunIISummer20UL18SIM_flowRunIISummer20UL18DIGIPremix_flowRunIISummer20UL18HLT_flowRunIISummer20UL18RECO_flowRunIISummer20UL18MiniAODv2_flowRunIISummer20UL18NanoAODv9'
+  chain_RunIISummer20UL17     = 'chain_RunIISummer20UL17GEN_flowRunIISummer20UL17SIM_flowRunIISummer20UL17DIGIPremix_flowRunIISummer20UL17HLT_flowRunIISummer20UL17RECO_flowRunIISummer20UL17MiniAODv2_flowRunIISummer20UL17NanoAODv9'
+  chain_RunIISummer20UL16     = 'chain_RunIISummer20UL16GEN_flowRunIISummer20UL16SIM_flowRunIISummer20UL16DIGIPremix_flowRunIISummer20UL16HLT_flowRunIISummer20UL16RECO_flowRunIISummer20UL16MiniAODv2_flowRunIISummer20UL16NanoAODv9'
+  chain_RunIISummer20UL16APV  = 'chain_RunIISummer20UL16GENAPV_flowRunIISummer20UL16SIMAPV_flowRunIISummer20UL16DIGIPremixAPV_flowRunIISummer20UL16HLTAPV_flowRunIISummer20UL16RECOAPV_flowRunIISummer20UL16MiniAODAPVv2_flowRunIISummer20UL16NanoAODAPVv9'
   chain_Run3Summer22GS    = ''
   chain_Run3Summer22EEGS  = ''
-  def __init__(self, mcm, name):
+  def __init__(self, mcm, name, pwg='BPH'):
     self.name = name
     self.mcm  = mcm
+    self.pwg  = pwg
 
   def fetch(self):
     print("WARNING: fetch method not implemented for the base class")
@@ -34,10 +35,7 @@ class worker:
   def checkid(self):
     ''' check that requests are valid
     '''
-    if all('prepid' in req.keys() for req in self.requests):
-      print("check {} OK".format(self.name))
-    else:
-      print("check {} FAILED".format(self.name))
+    return all('prepid' in req.keys() for req in self.requests)
 
   def checkstate(self):
     ''' check the status and approval state of the requests
@@ -76,15 +74,18 @@ class worker:
     print("validation run for {}".format(self.name))
     self.fetch(sleep=2)
 
-  def new_ticket(self, pwg, block, chain):
+  @staticmethod
+  def new_ticket(mcm, requests, name, chains, pwg='BPH', block=3):
     ''' WIP
     '''
     ticket = {
-      'pwg'     : pwg   ,
-      'block'   : block ,
-      'chains'  : chain ,
-      'requests': self.requests,
+      'pwg'     : pwg     ,
+      'requests': requests,
+      'block'   : block   ,
+      'chains'  : chains  ,
     }
+    tick = mcm.put(object_type='mccms', object_data=ticket, method='save')
+    return workerT(name=name, ticket=tick['prepid'], mcm=mcm)
   
   def grasp(self, campaigns, shorten=False):
     ''' returns the link to the grasp monitor page.
@@ -151,21 +152,27 @@ class workerT(worker):
     self._ticket    = ticket
     self.fetch()
 
+  def prepid(self):
+    return self._ticket
+
   def fetch(self, sleep=0):
     time.sleep(sleep)
     self.ticket     = self.mcm.get(object_id=self._ticket, object_type='mccms')
     self.requests   = self.mcm.root_requests_from_ticket(self._ticket)
     self._requests  = [req['prepid'] for req in self.requests]
 
-  def clone(self, campaign, newname='cloned', newticket=True):
+  def clone(self, campaign, chains, pwg='BPH', block=3, newticket=True, name="cloned"):
     ''' clone the ticket requests in a new campaign and
     possibly in a new ticket
     '''
     tmp = copy.deepcopy(self.requests)
-    for req in self.cloned:
+    for req in tmp:
       req['member_of_campaign'] = campaign
 
-    cloned = [
-      self.mcm.clone_request(req) for req in requests
-    ]
-    return workerR(name=newname, requests=cloned)
+    cloned = [self.mcm.clone_request(req) for req in tmp]
+    newids = [clo['prepid'] for clo in cloned]
+    newset = workerR(name=name, requests=newids, mcm=self.mcm)
+    newset.checkstate()
+    if not newticket: return newset
+    return worker.new_ticket(mcm=self.mcm, requests=newids, pwg=pwg, block=block, chains=chains, name=name)
+
