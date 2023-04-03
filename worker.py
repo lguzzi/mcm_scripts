@@ -118,6 +118,11 @@ class worker:
     cookie.load()
     return cookie
 
+  @staticmethod
+  def getlink(label, url):
+#    return f"\u001b]8;;{url}\u001b\\{target}\u001b]8;;\u001b\\"
+    return f"\x1b]8;;{url}\a{label}\x1b]8;;\a"
+
 class workerR(worker):
   ''' init a group of requests from prepids
   '''
@@ -176,3 +181,10 @@ class workerT(worker):
     newset.checkstate()
     if not newticket: return newset
     return worker.new_ticket(mcm=self.mcm, requests=newids, pwg=pwg, block=block, chains=chains, name=name)
+
+  def get_request_string(self, million=True):
+    tlink     = worker.getlink(self._ticket, "https://cms-pdmv.cern.ch/mcm/mccms?prepid="+self._ticket)
+    campaign  = self.requests[0]['member_of_campaign']
+    clink     = ' '.join(worker.getlink('chain', 'https://cms-pdmv.cern.ch/mcm/chained_campaigns?prepid='+str(chain)) for chain in self.ticket['chains']) 
+    events    = self.ticket['total_events']/1.e+6 if million else self.ticket['total_events']
+    print(f"{tlink} | {campaign} | {clink} | {events}")
