@@ -119,9 +119,9 @@ class worker:
     return cookie
 
   @staticmethod
-  def getlink(label, url):
+  def getlink(label, url):pass
 #    return f"\u001b]8;;{url}\u001b\\{target}\u001b]8;;\u001b\\"
-    return f"\x1b]8;;{url}\a{label}\x1b]8;;\a"
+#    return f"\x1b]8;;{url}\a{label}\x1b]8;;\a"
 
 class workerR(worker):
   ''' init a group of requests from prepids
