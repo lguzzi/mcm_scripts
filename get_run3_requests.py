@@ -19,6 +19,16 @@ mcm = McM(dev=False)
 class Campaign:
   MAX = args.max
   def __init__(self, campaign):
+    ''' create the dictionary
+    {
+      dataset_1 = {
+        campaign_name: [request list]
+      },
+      dataset_2 = {
+        campaign_name: [request list]
+      },
+      ...
+    }'''
     self.camp = campaign
     self.reql = self.fetch()
     self.reqd = {}
@@ -38,6 +48,15 @@ class Campaign:
     ] if r is not None and int(r['prepid'][-5:])>=args.minpid]
 
 def merge(campaigns):
+  ''' merge multiple Campaign dictionaries
+  {
+    dataset_1:{
+      campaign1: [requests],
+      campaign2: [requests],
+      ...
+    }
+    ...
+  }'''
   ret = {}
   for c in campaigns:
     for d, r in c.reqd.items():
@@ -47,6 +66,12 @@ def merge(campaigns):
   return ret
 
 def write(dictionary, outfile, gstyle=False):
+  ''' write the merged dictionary into a file
+  dataset_name \t PID_campaign1_request1 \t PID_campaign2_request1 \n
+  \t              PID_campaign1_request2 \t PID_campaign2_request2 \n
+  ...
+  and uses gsheet HYPERLINK syntax
+  '''
   ext = lambda l, max: l+['']*(max-len(l)) if len(l)<max else l
   frm = lambda s, what: '=HYPERLINK("https://cms-pdmv.cern.ch/mcm/requests?{W}={S}";"{S}")'.format(W=what,S=s) if gstyle else s
   with open(outfile, 'w') as ofile:
